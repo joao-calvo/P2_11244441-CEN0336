@@ -72,58 +72,72 @@ def reading_frames (all_genes):
 		all_frames[genes]['6'] = re.findall(r"(.{3})", genes_rev_dict[genes][2:]) # cálculo da fase de leitura 6
 	return all_frames
 
-all_frames = reading_frames(genes_dict) # Com isso, usamos a função e armazenamos sua saída no dicionário all_frames
+all_frames = reading_frames(genes_dict) # Com isso, usamos a função acima e armazenamos sua saída no dicionário all_frames
 
 
-# Criando a função para traduzir cada reading frame de cada gene
-def codons_translation (all_frames): # neste bloco de for, os codons de cada frame, para cada gene são percorridos, e ocorre a formação da sequencia de proteina
+# Criando a função para fornecer o ORF mais comprido de cada gene, bem como sua posição de inicio e final, e qual frame está localizado
+def long_ORF (all_frames):
 	for gene_id in all_frames:
-		protein_dict[gene_id] = {}
+		longest_ORF[gene_id] = {"sequence" : "", "start" : 0 , "end" : 0 , "frame" : 0, "len" : 0} # cria um dicionário com as informações que precisarão ser armazenadas para cada gene
 		for frames in all_frames[gene_id]:
-			protein_dict[gene_id][frames] = []
-			protein = ""
-			for codon in all_frames[gene_id][frames]:
-				if codon in translation_table:
-					protein += translation_table[codon] #armazenando os aminoácidos traduzidos na string protein
-				else:
-					print (" O códon não se encontra no dicionário de tradução")
-					exit()
-			protein_dict[gene_id][frames] = protein
-
-	for gene_id in protein_dict:
-		longest_ORF[gene_id] = ""
-		for frames in protein_dict[gene_id]:
-			ORFs = re.finditer(r"(M[A-Z]+?\*)" , protein_dict[gene_id][frames]) #.finditer() pesquisa todas as sequencias que começam com M e finalizam com * (códons de início e parada). Retorna um objeto com todas as ocorrências, que é iterável
-			for i in ORFs:
-				if len(i.group(1)) > len(longest_ORF[gene_id]):
-					longest_ORF[gene_id] = i.group(1)
+			sequence = ''.join(all_frames[gene_id][frames]) # junta a lista de códons de cada frame em uma string só, para que possamos usar .finditer. Não pode separar os codons por espaços para que tenhamos as posições de inicio e final corretas
+			ORFs = re.finditer(r"(ATG)([A-Z]*?)(TAA|TGA|TAG)", sequence) # Pesquisa todas as sequencias de DNA que começam com ATG e terminam com algum dos códons de parada. Armazena as correspondências em um objeto iterável
+			for i in ORFs: # usado para percorrer cada correspondência encontrada
+				orf_sequence = i.group()
+				if len(orf_sequence) > len(longest_ORF[gene_id]["sequence"]) and len(orf_sequence) % 3 == 0: # caso o ORF atual seja maior que o anterior e também seja uma sequência múltipla de 3, ele é armazenado, junto com sua posição de inicio e final de determinado frame
+					longest_ORF[gene_id]["sequence"] = orf_sequence
+					longest_ORF[gene_id]["start"] = i.start() +1 # soma um para ter a posição na sequencia de DNA
+					longest_ORF[gene_id]["end"] = i.end() +1
+					longest_ORF[gene_id]["frame"] = int(frames)
+					longest_ORF[gene_id]["len"] = len(orf_sequence)
 	return longest_ORF
 
-longest_ORF = codons_translation(all_frames) # Com isso, usamos a função para traduzir os códons e armazenamos a saída no dicionário de proteínas
+longest_ORF = long_ORF(all_frames) # Com isso, usamos a função acima e armazenamos sua saída no dicionário longest_ORF
 
-print (longest_ORF)
+# Criando a função para traduzir os ORFs mais compridos de cada gene
+def codons_translation (longest_ORF):
+	for gene_id in longest_ORF:
+		protein_dict[gene_id] = {"sequence" : "", "start" : longest_ORF[gene_id]["start"] , "end" : longest_ORF[gene_id]["end"] , "frame" : longest_ORF[gene_id]["frame"]}
+		codons = []
+		protein = ""
+		codons = re.findall(r"(.{3})", longest_ORF[gene_id]["sequence"])
+		for codon in codons:
+			if codon in translation_table:
+				protein += translation_table[codon] #armazenando os aminoácidos traduzidos na string protein
+			else:
+				print (f"O códon {codon} não se encontra no dicionário de tradução")
+				sys.exit()
+			protein_dict[gene_id]["sequence"] = protein
 
-# Procurando pela maior sequencia de proteina em cada frame
-# Considerando que o início é pela metionina ( representado por 'M' ) e que os códons de parada são representados por '*'
+	return protein_dict
 
-#for genes in protein_dict:
-#	longest_protein[genes] = ""
-#	proteinas = re.finditer(r"(M[A-Z]+?\*)" , protein_dict[genes]) # o .finditer() pesquisará todas as ocorrencias de sequencias começando com M, tendo uma ou mais letras maiúsculas e finalizando com *, na nossa string. Com isso, retornará um objeto iterável, que corresponde a todas as ocorrências encontradas, sendo que estas ocorrencias poderao ser percorridas por um loop for
-#	for i in proteinas:
-#		if len(i.group(1)) > len(longest_protein[genes]):
-#			longest_protein[genes] = i.group(1)
+protein_dict = codons_translation(longest_ORF) # Com isso, usamos a função acima e armazenamos sua saída no dicionário protein_dict
 
+# Escrevendo os ORFs mais compridos no arquivo de saída
+with open("ORF.fna" , "w") as output_file:
+	for gene_id in longest_ORF:
+		frame = longest_ORF[gene_id]["frame"] # Definindo as variáveis que serão escritas
+		start = longest_ORF[gene_id]["start"]
+		end = longest_ORF[gene_id]["end"]
+		sequence = longest_ORF[gene_id]["sequence"]
 
+		headline = f">{gene_id}_frame{frame}_{start}_{end}\n" # Escreve o cabeçalho no formato FASTA iniciado por >
+		output_file.write (headline)
 
+		for i in range(0, len(sequence), 60): # Escreve linhas de sequencia de DNA com no maximo 60 caracteres
+		    output_file.write(sequence[i:i+60] + "\n")
 
+# Escrevendo os peptideos traduzidos de cada ORF
+with open("ORF.faa" , "w") as output_file:
+        for gene_id in protein_dict:
+                frame = protein_dict[gene_id]["frame"] # Definindo as variáveis que serão escritas
+                start = protein_dict[gene_id]["start"]
+                end = protein_dict[gene_id]["end"]
+                sequence = protein_dict[gene_id]["sequence"]
 
-# Escrevendo o resultado no arquivo de saída
+                headline = f">{gene_id}_frame{frame}_{start}_{end}\n" # Escreve o cabeçalho no formato FASTA iniciado por >
+                output_file.write (headline)
 
-#with open("teste_saida_08.txt" , "w") as output_file:  #uso de dois blocos de for
-#	for gene_id , frames, in all_frames.items():  	#método items() retorna todos os items do dicionário como tuplas, neste caso transforma-os em um par (gene_id , frames), onde gene_id é a chave e 'frames' é o valor associado a essa chave (um dicionário que contem os frames 1,2,3 e seus respectivos códons). O for será usado para percorre pela nome dos genes e obter acesso ao dicionário frames
-#		for frame, codons in frames.items():  #da mesma maneira que o anterior, aqui o método items() fará um par (frame, codons), onde frame será as chaves (1,2 ou 3) e 'codons' receberá os valores associados a cada chave, durante cada iteração. Ou seja, o for percorrerá cada frame, e atribuirá os valores aos códons
-#			headline = f"{gene_id}-frame-{frame}-codons\n"
-#			output_file.write (headline)
-#			output_file.write (" ".join(codons) + "\n\n")
-
+                for i in range(0, len(sequence), 60): # Escreve linhas de sequencia de DNA com no maximo 60 caracteres
+                    output_file.write(sequence[i:i+60] + "\n")
 
