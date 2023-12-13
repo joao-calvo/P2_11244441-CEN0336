@@ -93,7 +93,7 @@ def codons_translation (all_frames): # neste bloco de for, os codons de cada fra
 	for gene_id in protein_dict:
 		longest_ORF[gene_id] = ""
 		for frames in protein_dict[gene_id]:
-			ORFs = re.finditer(r"(M[A-Z]+?\*)" , protein_dict[gene_id]) #.finditer() pesquisa todas as sequencias que começam com M e finalizam com * (códons de início e parada). Retorna um objeto com todas as ocorrências, que é iterável
+			ORFs = re.finditer(r"(M[A-Z]+?\*)" , protein_dict[gene_id][frames]) #.finditer() pesquisa todas as sequencias que começam com M e finalizam com * (códons de início e parada). Retorna um objeto com todas as ocorrências, que é iterável
 			for i in ORFs:
 				if len(i.group(1)) > len(longest_ORF[gene_id]):
 					longest_ORF[gene_id] = i.group(1)
