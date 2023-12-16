@@ -79,8 +79,8 @@ def long_ORF (all_frames):
 	for gene_id in all_frames:
 		longest_ORF[gene_id] = {"sequence" : "", "start" : 0 , "end" : 0 , "frame" : 0, "len" : 0} # cria um dicionário com as informações que precisarão ser armazenadas para cada gene
 		for frames in all_frames[gene_id]:
-			sequence = ' '.join(all_frames[gene_id][frames]) # junta a lista de códons de cada frame em uma string só, para que possamos usar .finditer. Não pode separar os codons por espaços para que tenhamos as posições de inicio e final corretas
-			ORFs = re.finditer(r"(ATG[A-Z]*(TAA|TGA|TAG))", sequence) # Pesquisa todas as sequencias de DNA que começam com ATG e terminam com algum dos códons de parada. Armazena as correspondências em um objeto iterável
+			sequence = ''.join(all_frames[gene_id][frames]) # junta a lista de códons de cada frame em uma string só, para que possamos usar .finditer. Não pode separar os codons por espaços para que tenhamos as posições de inicio e final corretas
+			ORFs = re.finditer(r"(ATG[A-Z]*?(TAA|TGA|TAG))", sequence) # Pesquisa todas as sequencias de DNA que começam com ATG e terminam com algum dos códons de parada. Armazena as correspondências em um objeto iterável
 			for i in ORFs: # usado para percorrer cada correspondência encontrada
 				orf_sequence = i.group() # armazena cada correspondência
 				if len(orf_sequence) > len(longest_ORF[gene_id]["sequence"]) and len(orf_sequence) % 3 == 0: # caso o ORF atual seja maior que o anterior e também seja uma sequência múltipla de 3, ele é armazenado, junto com sua posição de inicio e final de determinado frame
